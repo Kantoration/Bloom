@@ -1,0 +1,98 @@
+{
+  "algorithm_settings": {
+    "group_size": 6,
+    "debug_mode": true,
+    "validation_enabled": true,
+    "use_sparse_matrix": true,
+    "use_parallel_processing": false,
+    "max_workers": 4,
+    "batch_size": 200
+  },
+  
+  "scoring_weights": {
+    "beta_diversity": 1.0,
+    "gamma_similarity": 0.2,
+    "alpha_constraints": 0.0,
+    "categorical_diversity": 0.3,
+    "multi_choice_overlap": 0.1,
+    "balance_bonus": 0.2
+  },
+  
+  "constraints": {
+    "hard_categorical": {
+      "description": "Fields that must match exactly (creates subspaces) - for critical logistics",
+      "fields": {}
+    },
+    
+    "hard_multi_choice": {
+      "description": "Multi-choice fields requiring non-empty intersection - for critical logistics",
+      "fields": {
+        "ימים נוחים לפגישה": "required"
+      }
+    },
+    
+    "hard_numeric_tolerance": {
+      "description": "Numeric fields with absolute tolerance limits",
+      "fields": {}
+    },
+    
+    "soft_categorical": {
+      "description": "Categorical fields that contribute to diversity/similarity scoring",
+      "fields": {
+        "סטטוס": "diversity",
+        "מקצוע/תחום": "diversity", 
+        "שלב בחיים": "diversity",
+        "תפקיד בקבוצה": "balance"
+      }
+    },
+    
+    "soft_multi_choice": {
+      "description": "Multi-choice fields that contribute to scoring as bonuses",
+      "fields": {
+        "מגבלות תזונתיות": "overlap_bonus",
+        "מה הייתי רוצה לחוות החודש": "overlap_bonus",
+        "מה הייתי רוצה ללמוד": "overlap_bonus"
+      }
+    },
+    
+    "soft_numeric_fields": {
+      "description": "Numeric fields used for diversity scoring (variance calculation)",
+      "fields": [
+        "אני אדם מופנם",
+        "אני אדם יצירתי", 
+        "אני נוטה ללחץ",
+        "חשיבות הומור",
+        "חשיבות רוחניות",
+        "אני אוהב להתאמן",
+        "נהנה יותר בעיר/טבע",
+        "נהנה משיח פוליטי"
+      ]
+    },
+    
+    "age_constraints": {
+      "field": "גיל",
+      "tolerance": 20,
+      "description": "All group members must be within mean ± tolerance"
+    }
+  },
+  
+  "normalization": {
+    "flexible_answers": [
+      "לא משנה לי", "גם וגם", "אין", "לא חשוב", "שילוב", "בין לבין",
+      "לא משנה", "כל האפשרויות", "אין העדפה", "לא רלוונטי"
+    ],
+    "description": "Answers that should match with all concrete options"
+  },
+  
+  "scalability": {
+    "batch_processing_threshold": 500,
+    "graph_clustering_threshold": 1000,
+    "enable_community_detection": false
+  },
+  
+  "explainability": {
+    "log_constraint_details": true,
+    "log_scoring_breakdown": true,
+    "export_debug_info": true
+  }
+}
