@@ -167,9 +167,8 @@ CUT_NUMERIC_TOL = CONFIG["constraints"]["hard_numeric_tolerance"]["fields"]
 DEFINE_NUMERIC = CONFIG["constraints"]["soft_numeric_fields"]["fields"]
 DEFINE_NUMERIC_SOFT_TOL = 3  # טולרנס "רך" להימנע מקצוות קשים מדי
 
-# גיל — כלל קבוצתי: כל חברי הקבוצה בתוך mean(group) ± K
-AGE_FIELD = CONFIG["constraints"]["age_constraints"]["field"]
-AGE_K = CONFIG["constraints"]["age_constraints"]["tolerance"]
+# Age rules - data-driven configuration
+AGE_RULES = CONFIG["constraints"].get("age_rules", None)
 
 GROUP_SIZE = CONFIG["algorithm_settings"]["group_size"]
 
@@ -207,8 +206,18 @@ def validate_config() -> None:
     """Validate configuration parameters."""
     assert GROUP_SIZE > 0, "GROUP_SIZE must be positive"
     assert all(tol > 0 for tol in CUT_NUMERIC_TOL.values()), "Tolerances must be positive"
-    assert AGE_K > 0, "AGE_K must be positive"
     assert all(weight >= 0 for weight in [ALPHA_CONSTRAINTS, BETA_DIVERSITY, GAMMA_SIMILARITY]), "Weights must be non-negative"
+    
+    # Validate age rules if present
+    if AGE_RULES:
+        assert "field" in AGE_RULES, "Age rules must specify field"
+        assert "bands" in AGE_RULES, "Age rules must specify bands"
+        assert len(AGE_RULES["bands"]) > 0, "Age rules must have at least one band"
+        for band in AGE_RULES["bands"]:
+            assert "min" in band and "max" in band, "Each age band must have min and max"
+            assert band["min"] <= band["max"], "Age band min must be <= max"
+            if "max_spread" in band and band["max_spread"] is not None:
+                assert band["max_spread"] >= 0, "Age band max_spread must be non-negative"
 
 def validate_dataframe(df: pd.DataFrame) -> None:
     """Validate that DataFrame has required columns."""
@@ -216,7 +225,7 @@ def validate_dataframe(df: pd.DataFrame) -> None:
     missing_multi = [col for col in CUT_MULTI.keys() if col not in df.columns]
     missing_numeric = [col for col in CUT_NUMERIC_TOL.keys() if col not in df.columns]
     missing_define = [col for col in DEFINE_NUMERIC if col not in df.columns]
-    missing_age = [AGE_FIELD] if AGE_FIELD not in df.columns else []
+    missing_age = [AGE_RULES["field"]] if AGE_RULES and AGE_RULES["field"] not in df.columns else []
     
     all_missing = missing_categorical + missing_multi + missing_numeric + missing_define + missing_age
     
@@ -244,6 +253,75 @@ def debug_print(message: str) -> None:
     """Print debug message if DEBUG_MODE is enabled."""
     if DEBUG_MODE:
         print(f"[DEBUG] {message}")
+
+# =========================
+# Age Band Helper Functions
+# =========================
+def get_age_band(age: float, age_rules: Dict) -> int:
+    """Get the band index for a given age."""
+    if not age_rules or pd.isna(age):
+        return -1
+    
+    bands = age_rules["bands"]
+    for i, band in enumerate(bands):
+        if band["min"] <= age <= band["max"]:
+            return i
+    return -1
+
+def check_age_compatibility(age1: float, age2: float, age_rules: Dict) -> bool:
+    """Check if two ages are compatible based on age rules with overlapping bands."""
+    if not age_rules or pd.isna(age1) or pd.isna(age2):
+        return False
+    
+    # Simple max age difference rule (legacy support)
+    if "max_age_difference" in age_rules:
+        max_diff = age_rules["max_age_difference"]
+        return abs(age1 - age2) <= max_diff
+    
+    # Overlapping band-based rules
+    bands = age_rules["bands"]
+    
+    # Find all bands that each age belongs to
+    bands1 = []
+    bands2 = []
+    
+    for i, band in enumerate(bands):
+        if band["min"] <= age1 <= band["max"]:
+            bands1.append(i)
+        if band["min"] <= age2 <= band["max"]:
+            bands2.append(i)
+    
+    # If either age doesn't belong to any band, they're not compatible
+    if not bands1 or not bands2:
+        return False
+    
+    # Check if they share any common band
+    common_bands = set(bands1).intersection(set(bands2))
+    if common_bands:
+        # They share at least one band, check max_spread for the most restrictive common band
+        min_max_spread = float('inf')
+        for band_idx in common_bands:
+            max_spread = bands[band_idx].get("max_spread")
+            if max_spread is not None:
+                min_max_spread = min(min_max_spread, max_spread)
+        
+        if min_max_spread == float('inf'):
+            return True  # No max_spread limit in any common band
+        else:
+            return abs(age1 - age2) <= min_max_spread
+    
+    # No common bands - check if cross-band is allowed
+    if not age_rules.get("allow_cross_band", False):
+        return False
+    
+    # For cross-band compatibility, use the most permissive max_spread
+    max_max_spread = 0
+    for band_idx in bands1 + bands2:
+        max_spread = bands[band_idx].get("max_spread")
+        if max_spread is not None:
+            max_max_spread = max(max_max_spread, max_spread)
+    
+    return abs(age1 - age2) <= max_max_spread
 
 # =========================
 # עזר: המרת טקסט ריבוי-בחירה לסט
@@ -417,6 +495,37 @@ def build_compatibility_matrix_vectorized(df: pd.DataFrame, indices: List[int] =
                 compat = compat.multiply(compat_multi)
             else:
                 compat = compat & compat_multi
+    
+    # Vectorized age band checks
+    if AGE_RULES and AGE_RULES["field"] in df_subset.columns:
+        try:
+            ages = pd.to_numeric(df_subset[AGE_RULES["field"]], errors='coerce')
+            valid_mask = ~ages.isna()
+            
+            if valid_mask.sum() < n:
+                debug_print(f"Warning: {AGE_RULES['field']} has {n - valid_mask.sum()} missing values")
+            
+            # Vectorized age compatibility check
+            ages_array = ages.values
+            compat_age = np.zeros((n, n), dtype=bool)
+            
+            for i in range(n):
+                for j in range(n):
+                    if i == j:
+                        compat_age[i, j] = True  # Self-compatible
+                    elif not (np.isnan(ages_array[i]) or np.isnan(ages_array[j])):
+                        compat_age[i, j] = check_age_compatibility(ages_array[i], ages_array[j], AGE_RULES)
+            
+            if USE_SPARSE_MATRIX and SCIPY_AVAILABLE:
+                compat_age = csr_matrix(compat_age)
+                compat = compat.multiply(compat_age)
+            else:
+                compat = compat & compat_age
+                
+            debug_print(f"Age band compatibility applied: {AGE_RULES['field']}")
+            
+        except Exception as e:
+            debug_print(f"Error in vectorized age check: {e}")
     
     # Vectorized numeric tolerance checks
     for col, tol in CUT_NUMERIC_TOL.items():
@@ -747,20 +856,47 @@ def group_score(df_group: pd.DataFrame, explain: bool = False) -> Tuple[float, D
 
 
 # =========================
-# בדיקות קבוצתיות (גיל סביב ממוצע ±K, וטולרנס "רך" לשדות 1–10)
+# בדיקות קבוצתיות (light sanity check for age bands)
 # =========================
 def pass_group_constraints(df_group):
-    # גיל סביב ממוצע
-    if AGE_FIELD in df_group:
-        ages = pd.to_numeric(df_group[AGE_FIELD], errors="coerce").dropna()
-        if len(ages) != len(df_group):
+    """Group-level constraints including age spread limits."""
+    if AGE_RULES and AGE_RULES["field"] in df_group.columns:
+        ages = pd.to_numeric(df_group[AGE_RULES["field"]], errors="coerce").values
+        if np.isnan(ages).any():
             return False
-        mu = ages.mean()
-        if np.any(np.abs(ages - mu) > AGE_K):
-            return False
-
-    # טולרנס רך 1–10: נוודא שאין חיכוך קיצוני (לא פוסלים כלום, אבל נעדיף קבוצות נעימות)
-    # כאן נשאיר כבדיקה “רכה” בציון – לא נכשיל; אם תרצה – אפשר להפוך לקשיח.
+        
+        # Check group-level age constraints
+        group_constraints = AGE_RULES.get("group_constraints", {})
+        
+        # Maximum age difference constraint
+        max_age_diff = group_constraints.get("max_age_difference")
+        if max_age_diff is not None:
+            age_range = np.max(ages) - np.min(ages)
+            if age_range > max_age_diff:
+                debug_print(f"Group rejected: age range {age_range:.1f} > max {max_age_diff}")
+                return False
+        
+        # Maximum age standard deviation constraint
+        max_age_std = group_constraints.get("max_age_std")
+        if max_age_std is not None:
+            age_std = np.std(ages)
+            if age_std > max_age_std:
+                debug_print(f"Group rejected: age std {age_std:.1f} > max {max_age_std}")
+                return False
+        
+        # Legacy band-based check (optional)
+        bands = AGE_RULES.get("bands", [])
+        if bands:
+            def band_id(a):
+                for i, b in enumerate(bands):
+                    if b["min"] <= a <= b["max"]:
+                        return i
+                return -1
+            
+            group_bands = np.array([band_id(a) for a in ages])
+            if not AGE_RULES.get("allow_cross_band", False) and len(set(group_bands)) > 1:
+                return False
+    
     return True
 
 
@@ -835,8 +971,8 @@ def build_one_group_optimized(df: pd.DataFrame, candidates: List[int], compat_ma
         remaining_global.remove(best_cand_global)
         debug_print(f"Added candidate {best_cand_global} to group (score: {best_score:.3f})")
 
-    # Allow smaller groups if we have at least 3 participants
-    min_group_size = 3
+    # Allow smaller groups with priority: 6 → 5 → 4 (minimum)
+    min_group_size = 4
     result = group_global if len(group_global) >= min_group_size else []
     debug_print(f"Final group size: {len(result)} (target: {GROUP_SIZE}, minimum: {min_group_size})")
     return result
@@ -871,7 +1007,7 @@ def make_groups(df: pd.DataFrame) -> List[List[int]]:
         pool = [i for i in idxs if i not in used]
         debug_print(f"Available candidates in subspace: {len(pool)}")
         
-        min_group_size = 3
+        min_group_size = 4
         if len(pool) < min_group_size:
             debug_print(f"Not enough candidates in subspace for any group (need at least {min_group_size})")
             continue
@@ -884,7 +1020,7 @@ def make_groups(df: pd.DataFrame) -> List[List[int]]:
             # נסה לבנות קבוצה מתוך המאגר
             available_candidates = [i for i in pool if i not in used]
             if len(available_candidates) < min_group_size:
-                debug_print(f"Not enough candidates ({len(available_candidates)}) for minimum group size")
+                debug_print(f"Not enough candidates ({len(available_candidates)}) for minimum group size ({min_group_size})")
                 break
                 
             # Map global indices to local subspace indices for compatibility matrix
@@ -944,7 +1080,16 @@ if __name__ == "__main__":
         groups = make_groups(df)
 
         print(f"\n=== RESULTS ===")
-        print(f"נוצרו {len(groups)} קבוצות של {GROUP_SIZE}:")
+        print(f"נוצרו {len(groups)} קבוצות:")
+        
+        # Show group size distribution
+        group_sizes = [len(g) for g in groups]
+        size_counts = {}
+        for size in group_sizes:
+            size_counts[size] = size_counts.get(size, 0) + 1
+        
+        size_summary = ", ".join([f"{count} קבוצות של {size}" for size, count in sorted(size_counts.items())])
+        print(f"חלוקת גדלים: {size_summary}")
         
         # Create detailed results for CSV export
         group_results = []

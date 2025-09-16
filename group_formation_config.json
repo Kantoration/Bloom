@@ -69,10 +69,22 @@
       ]
     },
     
-    "age_constraints": {
+    "age_rules": {
       "field": "גיל",
-      "tolerance": 20,
-      "description": "All group members must be within mean ± tolerance"
+      "bands": [
+        {"name": "20s", "min": 20, "max": 29, "max_spread": 8},
+        {"name": "20s-30s", "min": 25, "max": 35, "max_spread": 10},
+        {"name": "30s-40s", "min": 30, "max": 45, "max_spread": 12},
+        {"name": "40s-50s", "min": 40, "max": 55, "max_spread": 15},
+        {"name": "50plus", "min": 50, "max": 120, "max_spread": 20}
+      ],
+      "allow_cross_band": true,
+      "group_constraints": {
+        "max_age_difference": 10,
+        "max_age_std": 6.0,
+        "description": "Group-level age constraints to prevent too wide age spreads"
+      },
+      "description": "Overlapping age bands with group-level age spread limits"
     }
   },
   
