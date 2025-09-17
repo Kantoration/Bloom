@@ -87,7 +87,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: garf-frontend
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1

@@ -1,305 +1,332 @@
-# GARF Production Survey & Grouping System
+# 🌟 GARF Production System
 
-A comprehensive web-based system that replaces Google Forms with a production-ready survey platform featuring intelligent group formation algorithms, wildcard normalization, age bands, and full explainability.
+**Intelligent Group Formation with Email Verification**
+
+A complete, production-ready web application for creating optimal groups from survey responses using advanced algorithms, with built-in email verification and modern web interface.
+
+[![GitHub](https://img.shields.io/badge/GitHub-Kantoration%2FBloom-blue?style=flat-square&logo=github)](https://github.com/Kantoration/Bloom)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
+[![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=flat-square&logo=next.js)](https://nextjs.org)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue?style=flat-square&logo=docker)](https://docker.com)
 
 ## 🚀 Features
 
-### Core Functionality
-- **Dynamic Survey Builder**: Schema-driven forms with validation
-- **Smart Grouping Algorithm**: Integration with existing SOTRIM algorithm
-- **Wildcard Normalization**: Handles flexible answers like "לא משנה לי", "גם וגם"
-- **Age Bands**: Configurable age-based grouping with overlapping bands
-- **Subspace Partitioning**: Efficient grouping within categorical constraints
-- **Full Explainability**: Detailed explanations for every group formation
+### ✨ Core Functionality
+- **Intelligent Group Formation**: Advanced algorithm for optimal group creation
+- **Survey Management**: Complete survey creation and response collection system
+- **Email Verification**: Multi-language email verification system (Hebrew & English)
+- **Real-time Processing**: Background task processing with Redis
+- **Admin Dashboard**: Complete administrative control system
 
-### Technical Features
-- **RTL/i18n Support**: Hebrew and English interfaces
-- **Real-time Validation**: Client and server-side validation
-- **Background Processing**: Async feature extraction and grouping
-- **CSV Export**: Export responses, features, groups, and audit logs
-- **Docker Ready**: Full containerization for easy deployment
-- **API Documentation**: OpenAPI/Swagger documentation
+### 🏗️ Technical Features
+- **Modern Architecture**: Microservices design with FastAPI backend
+- **Responsive Frontend**: Next.js with TypeScript and Tailwind CSS
+- **Database**: PostgreSQL with proper schema and migrations
+- **Containerization**: Docker Compose for easy deployment
+- **API Documentation**: Auto-generated Swagger/OpenAPI docs
+- **Background Jobs**: Redis Queue for async processing
+- **Health Monitoring**: Built-in health checks and monitoring
 
-## 📋 System Requirements
+### 🌍 Multi-language Support
+- **Hebrew & English**: Complete localization support
+- **RTL Support**: Right-to-left text support for Hebrew
+- **Professional Email Templates**: Beautiful HTML email templates
 
-- Docker & Docker Compose
-- Node.js 18+ (for local development)
-- Python 3.11+ (for local development)
-- PostgreSQL 15+
-- Redis 7+
-
-## 🛠️ Quick Start
-
-### 1. Clone and Setup
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd garf-production
-
-# Copy environment template
-cp env.template .env
-# Edit .env with your configuration
-```
-
-### 2. Start with Docker
-
-```bash
-# Build and start all services
-docker-compose up --build
-
-# Run in detached mode
-docker-compose up -d
-```
-
-The system will be available at:
-- **Frontend**: http://localhost:3000
-- **API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/api/v1/docs
-- **pgAdmin**: http://localhost:5050 (development profile)
-
-### 3. Initialize Database
-
-```bash
-# Run database migrations
-docker-compose exec api alembic upgrade head
-
-# Create initial survey (optional)
-docker-compose exec api python scripts/create_initial_survey.py
-```
-
-## 🏗️ Architecture
+## 📁 Project Structure
 
 ```
 garf-production/
-├── frontend/          # Next.js 14 with TypeScript
-│   ├── src/
-│   │   ├── app/      # App router pages
-│   │   ├── components/
-│   │   ├── lib/      # API client and utilities
-│   │   ├── hooks/    # Custom React hooks
-│   │   └── styles/   # Global styles
-│   └── Dockerfile
-│
-├── api/              # FastAPI backend
+├── api/                    # FastAPI backend
 │   ├── app/
-│   │   ├── routers/  # API endpoints
-│   │   ├── models/   # SQLAlchemy models
-│   │   ├── schemas/  # Pydantic schemas
-│   │   ├── services/ # Business logic
-│   │   └── core/     # Configuration
-│   ├── migrations/   # Alembic migrations
-│   └── Dockerfile
+│   │   ├── core/          # Configuration and database
+│   │   ├── models/        # Database models
+│   │   ├── routers/       # API endpoints
+│   │   ├── schemas/       # Pydantic schemas
+│   │   └── services/      # Business logic
+│   ├── migrations/        # Database migrations
+│   └── requirements.txt   # Python dependencies
 │
-├── worker/           # Background task worker
-│   └── app/
-│       └── tasks/    # Async tasks
+├── frontend/              # Next.js frontend
+│   ├── src/
+│   │   ├── app/          # Next.js app router
+│   │   ├── components/   # React components
+│   │   ├── lib/          # Utilities and API client
+│   │   └── types/        # TypeScript types
+│   └── package.json      # Node.js dependencies
 │
-├── infra/           # Infrastructure configuration
-│   ├── nginx/       # Reverse proxy config
-│   ├── docker/      # Docker configurations
-│   └── database_schema.sql
+├── worker/               # Background task worker
+│   ├── app/tasks/       # Task definitions
+│   └── requirements.txt # Worker dependencies
 │
-└── docker-compose.yml
+├── infra/               # Infrastructure
+│   ├── database_schema.sql
+│   └── nginx/          # Reverse proxy config
+│
+├── docs/               # Documentation
+│   ├── EMAIL_VERIFICATION.md
+│   ├── SYSTEM_DEMO.md
+│   └── WORKSPACE_ORGANIZATION.md
+│
+├── docker-compose.yml  # Container orchestration
+├── start-system.ps1   # Windows startup script
+└── README.md          # This file
 ```
 
-## 📊 Database Schema
+## 🚀 Quick Start
 
-Key tables:
-- `participants`: User information
-- `surveys`: Survey definitions with JSON schemas
-- `responses`: Raw survey responses
-- `features`: Extracted and normalized features
-- `grouping_policies`: Grouping configuration
-- `grouping_runs`: Execution history
-- `groups`: Formed groups with explanations
-- `group_members`: Group assignments
+### Prerequisites
+- **Docker & Docker Compose** (Recommended)
+- **Python 3.11+** (for local development)
+- **Node.js 18+** (for frontend development)
+- **PostgreSQL** (if running locally)
+
+### Option 1: Docker (Recommended)
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Kantoration/Bloom.git
+   cd Bloom/garf-production
+   ```
+
+2. **Start the system**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Access the application**
+   - **Frontend**: http://localhost:3000
+   - **API**: http://localhost:8000
+   - **API Docs**: http://localhost:8000/api/v1/docs
+   - **Database**: localhost:5432
+
+### Option 2: Local Development
+
+1. **Backend Setup**
+   ```bash
+   cd api
+   pip install -r requirements.txt
+   uvicorn app.main:app --reload
+   ```
+
+2. **Frontend Setup**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+3. **Database Setup**
+   ```bash
+   # Create PostgreSQL database
+   createdb garf_db
+   
+   # Run migrations
+   psql -d garf_db -f infra/database_schema.sql
+   ```
+
+## 📧 Email Verification Setup
+
+The system includes a complete email verification system:
+
+### 1. Configure Email Settings
+Create a `.env` file in `garf-production/`:
+```bash
+# Email Configuration
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+MAIL_FROM=noreply@garf.com
+MAIL_PORT=587
+MAIL_SERVER=smtp.gmail.com
+MAIL_FROM_NAME="GARF System"
+EMAIL_VERIFICATION_BASE_URL=http://localhost:3000
+```
+
+### 2. Gmail Setup (Recommended)
+1. Enable 2-factor authentication
+2. Generate an App Password
+3. Use the app password as `MAIL_PASSWORD`
+
+### 3. Run Database Migration
+```bash
+psql -d garf_db -f api/migrations/add_email_verification.sql
+```
 
 ## 🔧 Configuration
 
-### Survey Schema
+### Environment Variables
+Copy `env.template` to `.env` and configure:
 
-Surveys are defined using a typed JSON schema:
+```bash
+# Application
+DEBUG=true
+SECRET_KEY=your-secret-key-here
 
-```json
-{
-  "fields": [
-    {
-      "name": "meeting_language",
-      "label": {"he": "שפת המפגש", "en": "Meeting language"},
-      "type": "single_select",
-      "options": ["עברית", "אנגלית", "גם וגם"],
-      "required": true,
-      "role": "hard_constraint",
-      "normalization": {
-        "wildcards": ["גם וגם"],
-        "expansion": ["עברית", "אנגלית"]
-      }
-    }
-  ]
-}
+# Database
+POSTGRES_SERVER=localhost
+POSTGRES_USER=garf
+POSTGRES_PASSWORD=garf_password
+POSTGRES_DB=garf_db
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# Email (see Email Verification Setup)
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+MAIL_FROM=noreply@garf.com
+
+# Frontend
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 ```
 
-### Grouping Policy
+## 📊 API Documentation
 
-```json
-{
-  "group_size": 6,
-  "subspaces": [["meeting_language"], ["area"]],
-  "hard": {
-    "categorical_equal": ["meeting_language"],
-    "multi_overlap": ["availability_days"],
-    "numeric_tol": {"energy_level": 2}
-  },
-  "age_rules": {
-    "field": "age",
-    "bands": [
-      {"name": "20s", "min": 20, "max": 29, "max_spread": 8}
-    ]
-  },
-  "soft": {
-    "numeric_features": ["introversion", "creativity"],
-    "weights": {
-      "diversity_numeric": 1.0,
-      "similarity_bonus": 0.2
-    }
-  }
-}
-```
+### Core Endpoints
 
-## 🚀 API Endpoints
+#### Surveys
+- `GET /api/v1/surveys` - List all surveys
+- `POST /api/v1/surveys` - Create new survey
+- `GET /api/v1/surveys/{id}` - Get survey details
 
-### Public Endpoints
-- `GET /api/v1/surveys/{name}` - Get survey schema
-- `POST /api/v1/responses/{id}/submit` - Submit response
+#### Responses
+- `POST /api/v1/responses/{survey_id}/submit` - Submit response
+- `GET /api/v1/responses/{id}` - Get response details
 
-### Admin Endpoints
-- `POST /api/v1/grouping/policies` - Create/update policy
-- `POST /api/v1/grouping/runs` - Trigger grouping
-- `GET /api/v1/admin/export/{table}.csv` - Export data
+#### Email Verification
+- `POST /api/v1/email-verification/send` - Send verification email
+- `GET /api/v1/email-verification/verify?token={token}` - Verify email
+- `GET /api/v1/email-verification/status/{participant_id}` - Check status
+
+#### Grouping
+- `POST /api/v1/grouping/{survey_id}/run` - Run grouping algorithm
+- `GET /api/v1/grouping/{survey_id}/results` - Get grouping results
+
+#### Admin
+- `GET /api/v1/admin/surveys` - Admin survey management
+- `POST /api/v1/admin/surveys/{id}/activate` - Activate survey
+
+### Interactive Documentation
+Visit http://localhost:8000/api/v1/docs for complete API documentation with interactive testing.
 
 ## 🧪 Testing
 
+### Test Email Verification
 ```bash
-# Run API tests
-docker-compose exec api pytest
-
-# Run frontend tests
-docker-compose exec frontend npm test
-
-# Test grouping algorithm
-docker-compose exec api python -m pytest tests/test_grouping.py
+cd api
+python test_email_verification.py
 ```
 
-## 📈 Performance
-
-- Handles 10,000+ participants
-- Subspace partitioning reduces O(n²) to O(k×n²/k)
-- Vectorized compatibility checks
-- Cached feature extraction
-- p95 grouping time < 60s for 10k participants
-
-## 🔒 Security
-
-- HTTPS with TLS (production)
-- CSRF protection on forms
-- Rate limiting (10 req/s API, 1 req/s submissions)
-- SQL injection protection via ORM
-- XSS protection headers
-- Input validation at all layers
-
-## 🌍 Deployment
-
-### Production Setup
-
-1. Update `.env` with production values
-2. Configure SSL certificates in nginx
-3. Set up database backups
-4. Configure monitoring (Prometheus/Grafana)
-5. Set up log aggregation
-
-### Scaling
-
-- Horizontal scaling via Docker Swarm/Kubernetes
-- Database read replicas for reports
-- Redis clustering for worker queues
-- CDN for static assets
-
-## 📝 Development
-
-### Local Development
-
+### Test System Integration
 ```bash
-# Backend
-cd api
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+python test_system.py
+```
 
-# Frontend
+### Run Frontend Tests
+```bash
 cd frontend
-npm install
-npm run dev
-
-# Worker
-cd api
-rq worker --url redis://localhost:6379/0
+npm test
 ```
 
-### Adding New Survey Fields
+## 🚀 Deployment
 
-1. Update survey schema in database
-2. Add field type handling in `SurveyField.tsx`
-3. Update validation in `app/services/validation.py`
-4. Add normalization rules if needed
+### Production Deployment
 
-## 🐛 Troubleshooting
+1. **Configure Production Environment**
+   ```bash
+   # Set production environment variables
+   export DEBUG=false
+   export SECRET_KEY=your-production-secret-key
+   export DATABASE_URL=postgresql://user:pass@host:port/db
+   ```
 
-### Common Issues
+2. **Deploy with Docker**
+   ```bash
+   docker-compose -f docker-compose.prod.yml up -d
+   ```
 
-1. **Database connection failed**
-   - Check PostgreSQL is running
-   - Verify credentials in `.env`
+3. **Set up Reverse Proxy**
+   - Configure Nginx for SSL termination
+   - Set up domain name and certificates
 
-2. **Frontend not loading**
-   - Check API_URL in frontend env
-   - Verify CORS settings
+### Cloud Deployment
 
-3. **Grouping fails**
-   - Check feature extraction completed
-   - Verify policy configuration
-   - Check algorithm logs
+The system is ready for deployment on:
+- **AWS**: ECS, EKS, or EC2
+- **Google Cloud**: Cloud Run, GKE
+- **Azure**: Container Instances, AKS
+- **DigitalOcean**: App Platform, Droplets
+- **Heroku**: Container deployment
 
-## 📚 Documentation
+## 🔍 Monitoring
 
-- API Documentation: http://localhost:8000/api/v1/docs
-- Algorithm Details: See `sotrim_algo.py`
-- Database Schema: `infra/database_schema.sql`
+### Health Checks
+- **API Health**: `GET /api/v1/health`
+- **Database**: Automatic connection monitoring
+- **Redis**: Queue health monitoring
+
+### Logging
+- Structured logging with configurable levels
+- Request/response logging
+- Error tracking and alerting
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
+1. **Fork the repository**
+2. **Create a feature branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. **Commit your changes**
+   ```bash
+   git commit -m 'Add amazing feature'
+   ```
+4. **Push to the branch**
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+5. **Open a Pull Request**
 
-## 📄 License
+## 📝 License
 
-[Your License Here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 👥 Team
 
-- Algorithm: Based on existing SOTRIM implementation
-- System Design: Production-ready architecture
-- Frontend: Next.js with TypeScript
-- Backend: FastAPI with SQLAlchemy
+- **Algorithm**: Based on existing SOTRIM implementation
+- **System Design**: Production-ready architecture
+- **Frontend**: Next.js with TypeScript
+- **Backend**: FastAPI with SQLAlchemy
+- **Email System**: Multi-language verification system
 
 ## 📞 Support
 
 For issues or questions:
-- GitHub Issues: [Link]
-- Email: [support@example.com]
+- **GitHub Issues**: [Create an issue](https://github.com/Kantoration/Bloom/issues)
+- **Documentation**: Check the `docs/` folder
+- **API Docs**: http://localhost:8000/api/v1/docs
+
+## 🎯 Roadmap
+
+### Upcoming Features
+- [ ] Advanced analytics dashboard
+- [ ] Real-time group formation updates
+- [ ] Mobile app (React Native)
+- [ ] Advanced email templates
+- [ ] Multi-tenant support
+- [ ] Advanced reporting
+- [ ] Integration with external survey tools
+
+### Recent Updates
+- ✅ Complete email verification system
+- ✅ Multi-language support (Hebrew & English)
+- ✅ Docker containerization
+- ✅ Production-ready architecture
+- ✅ Comprehensive API documentation
+- ✅ Admin control system
 
 ---
 
-Built with ❤️ for intelligent group formation
+**Built with ❤️ for intelligent group formation**
+
+*Transform your survey responses into optimal groups with the power of advanced algorithms and modern web technology.*
