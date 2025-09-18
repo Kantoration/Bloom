@@ -34,6 +34,13 @@ export interface RunSummaryWithPolicy extends RunSummary {
   policyName?: string | null;
 }
 
+export interface SurveyResponseRecord {
+  id: string;
+  participant_id: string;
+  responses: Record<string, any>;
+  created_at: string;
+}
+
 /**
  * Save a complete run result to Supabase
  * Persists runs, groups, group_members, and unassigned_queue
@@ -567,5 +574,149 @@ export async function updateRunStatus(
   } catch (error) {
     console.error('Error updating run status:', error);
     return false;
+  }
+}
+
+/**
+ * Save a survey response
+ * Creates or updates participant and saves survey response
+ * 
+ * @param responses - Survey response data
+ * @returns Survey response record with participant ID
+ */
+export async function saveSurveyResponse(
+  responses: Record<string, any>
+): Promise<SurveyResponseRecord> {
+  try {
+    // Extract participant identifiers
+    const email = responses.email;
+    const fullName = responses.full_name;
+    const phone = responses.phone;
+    const age = responses.age;
+    const kosher = responses.kosher === 'כן' || responses.kosher === true;
+
+    if (!email) {
+      throw new Error('Email is required for survey response');
+    }
+
+    // Check if participant exists
+    const { data: existingParticipant, error: fetchError } = await supabaseAdmin
+      .from('participants')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    let participantId: string;
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw new Error(`Failed to check existing participant: ${fetchError.message}`);
+    }
+
+    if (existingParticipant) {
+      // Update existing participant
+      participantId = existingParticipant.id;
+      const { error: updateError } = await supabaseAdmin
+        .from('participants')
+        .update({
+          name: fullName,
+          phone: phone,
+          age: age,
+          kosher: kosher,
+          responses: responses,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', participantId);
+
+      if (updateError) {
+        throw new Error(`Failed to update participant: ${updateError.message}`);
+      }
+    } else {
+      // Create new participant
+      const { data: newParticipant, error: createError } = await supabaseAdmin
+        .from('participants')
+        .insert({
+          name: fullName,
+          email: email,
+          phone: phone,
+          age: age,
+          kosher: kosher,
+          responses: responses
+        })
+        .select('id')
+        .single();
+
+      if (createError) {
+        throw new Error(`Failed to create participant: ${createError.message}`);
+      }
+
+      participantId = newParticipant.id;
+    }
+
+    // Save survey response
+    const { data: surveyResponse, error: responseError } = await supabaseAdmin
+      .from('survey_responses')
+      .insert({
+        participant_id: participantId,
+        responses: responses
+      })
+      .select('*')
+      .single();
+
+    if (responseError) {
+      throw new Error(`Failed to save survey response: ${responseError.message}`);
+    }
+
+    // Update participant with survey response reference
+    await supabaseAdmin
+      .from('participants')
+      .update({ survey_response_id: surveyResponse.id })
+      .eq('id', participantId);
+
+    return surveyResponse as SurveyResponseRecord;
+  } catch (error) {
+    console.error('Error saving survey response:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch survey responses
+ * 
+ * @param limit - Maximum number of responses to return
+ * @param offset - Number of responses to skip
+ * @returns Array of survey response records
+ */
+export async function fetchSurveyResponses(
+  limit: number = 50,
+  offset: number = 0
+): Promise<SurveyResponseRecord[]> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('survey_responses')
+      .select(`
+        *,
+        participants (
+          name,
+          email,
+          phone
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Failed to fetch survey responses:', error);
+      return [];
+    }
+
+    return (data || []).map(response => ({
+      id: response.id,
+      participant_id: response.participant_id,
+      responses: response.responses,
+      created_at: response.created_at
+    }));
+  } catch (error) {
+    console.error('Error fetching survey responses:', error);
+    return [];
   }
 }

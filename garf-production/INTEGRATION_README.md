@@ -17,6 +17,8 @@ This package provides a full integration between the TypeScript grouping engine,
 - `listRuns()` - List run summaries
 - `fetchParticipants()` - Get participants from database
 - `getRunStatistics()` - Detailed analytics
+- `saveSurveyResponse()` - Create/update participants and save survey responses
+- `fetchSurveyResponses()` - Retrieve survey responses with participant joins
 - Full CRUD operations for all entities
 
 ### 3. **API Server** (`server.ts`)
@@ -29,10 +31,13 @@ This package provides a full integration between the TypeScript grouping engine,
   - `DELETE /runs/:id` - Delete a run
   - `POST /test-run` - Run test grouping
   - `GET /health` - Health check
+  - `GET /survey/schema` - Fetch survey schema
+  - `POST /survey` - Submit survey responses
+  - `GET /survey/responses` - List survey responses
 
 ### 4. **Database Schema** (`schema.sql`)
 - Complete Supabase schema
-- Tables: `participants`, `runs`, `groups`, `group_members`, `unassigned_queue`
+- Tables: `participants`, `survey_responses`, `runs`, `groups`, `group_members`, `unassigned_queue`, `grouping_policies`
 - Views for dashboards: `run_statistics`, `group_details`, etc.
 - Row Level Security policies
 - Functions for complex queries
@@ -120,6 +125,7 @@ curl http://localhost:3000/runs/{runId}/stats
 - **Groups**: View all groups with members
 - **Participants**: Manage participant data
 - **Unassigned**: Track unassigned participants
+- **Survey Responses**: View and manage survey submissions
 
 ## 📊 Lovable Features
 
@@ -130,10 +136,11 @@ curl http://localhost:3000/runs/{runId}/stats
 - CRUD operations
 
 ### Custom Actions
-- **Run Grouping**: Form-based grouping configuration
+- **Run Grouping**: Form-based grouping configuration with policy selection
 - **Test Run**: Quick test with default settings
 - **View Details**: Drill-down into run data
 - **Export**: Download results as CSV
+- **Survey Management**: View and manage survey responses
 
 ### Data Visualization
 - Group size distribution
@@ -189,6 +196,7 @@ curl -X POST http://localhost:3000/test-run
 **Body:**
 ```json
 {
+  "policy_id": "optional-uuid",
   "options": {
     "kosherOnly": boolean,
     "targetGroupSize": number,
@@ -212,6 +220,32 @@ curl -X POST http://localhost:3000/test-run
   },
   "groups": [...],
   "diagnostics": {...}
+}
+```
+
+### POST /survey
+**Body:**
+```json
+{
+  "responses": {
+    "email": "user@example.com",
+    "full_name": "John Doe",
+    "age": 25,
+    "phone": "050-1234567",
+    "kosher": "לא",
+    "meeting_area": "מרכז (דיזנגוף, רוטשילד)",
+    "energy_end_day": 7
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Survey response saved successfully",
+  "participantId": "uuid",
+  "responseId": "uuid"
 }
 ```
 

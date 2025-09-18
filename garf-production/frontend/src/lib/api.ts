@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -40,21 +40,10 @@ api.interceptors.response.use(
 
 // API functions
 export const surveyAPI = {
-  list: (params?: any) => api.get('/surveys', { params }),
-  get: (id: number) => api.get(`/surveys/${id}`),
-  getByName: (name: string, version: string = 'current') => 
-    api.get(`/surveys/by-name/${name}`, { params: { version } }),
-  create: (data: any) => api.post('/surveys', data),
-  activate: (id: number) => api.patch(`/surveys/${id}/activate`),
-  deactivate: (id: number) => api.patch(`/surveys/${id}/deactivate`),
-}
-
-export const responseAPI = {
-  submit: (surveyId: number, data: any) => 
-    api.post(`/responses/${surveyId}/submit`, data),
-  get: (id: number) => api.get(`/responses/${id}`),
-  saveDraft: (surveyId: number, data: any) => 
-    api.post(`/responses/${surveyId}/save_draft`, data),
+  getSchema: () => api.get('/survey/schema'),
+  submit: (responses: Record<string, any>) => 
+    api.post('/survey', { responses }),
+  getResponses: (params?: any) => api.get('/survey/responses', { params }),
 }
 
 export const groupingAPI = {

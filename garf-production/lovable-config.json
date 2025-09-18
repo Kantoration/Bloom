@@ -129,6 +129,28 @@
             ]
           }
         ]
+      },
+      "survey_responses": {
+        "displayName": "Survey Responses",
+        "icon": "clipboard-list",
+        "searchFields": ["participant_id"],
+        "displayFields": ["id", "participant_id", "created_at"],
+        "relationships": {
+          "participant_id": {
+            "table": "participants",
+            "displayField": "name"
+          }
+        },
+        "forms": {
+          "view": {
+            "fields": [
+              { "name": "id", "type": "text", "readonly": true },
+              { "name": "participant_id", "type": "text", "readonly": true },
+              { "name": "responses", "type": "json", "label": "Survey Responses", "readonly": true },
+              { "name": "created_at", "type": "datetime", "readonly": true }
+            ]
+          }
+        }
       }
     },
     "views": {
@@ -360,6 +382,23 @@
             "chartType": "pie",
             "dataField": "count",
             "labelField": "reason"
+          }
+        ]
+      },
+      {
+        "name": "Survey Responses",
+        "path": "/survey-responses",
+        "icon": "clipboard-list",
+        "widgets": [
+          {
+            "type": "table",
+            "title": "All Survey Responses",
+            "source": "survey_responses",
+            "searchable": true,
+            "sortable": true,
+            "paginated": true,
+            "columns": ["id", "participant_id", "created_at"],
+            "actions": ["View Details"]
           }
         ]
       }

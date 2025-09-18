@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
+import { surveyAPI } from '@/lib/api'
 import { SurveyField } from '@/components/SurveyField'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
@@ -39,9 +39,8 @@ export default function SurveyPage() {
   
   const loadSurvey = async () => {
     try {
-      const response = await api.get('/surveys/by-name/main?version=current')
-      setSurvey(response.data)
-      setSurveySchema(response.data.schema_json)
+      const response = await surveyAPI.getSchema()
+      setSurveySchema(response.data.schema)
     } catch (error) {
       console.error('Error loading survey:', error)
       toast.error('שגיאה בטעינת הסקר')
@@ -111,25 +110,14 @@ export default function SurveyPage() {
   const onSubmit = async (data: any) => {
     setSubmitting(true)
     try {
-      // Extract participant info if present
-      const participantData: any = {}
-      if (data.email) participantData.participant_email = data.email
-      if (data.phone) participantData.participant_phone = data.phone
-      if (data.full_name) participantData.participant_name = data.full_name
-      
       // Submit response
-      await api.post(`/responses/${survey.id}/submit`, {
-        survey_id: survey.id,
-        data: data,
-        ...participantData,
-        locale: 'he'
-      })
+      await surveyAPI.submit(data)
       
       toast.success('הסקר נשלח בהצלחה!')
       router.push('/survey/thank-you')
     } catch (error: any) {
       console.error('Error submitting survey:', error)
-      toast.error(error.response?.data?.detail || 'שגיאה בשליחת הסקר')
+      toast.error(error.response?.data?.message || 'שגיאה בשליחת הסקר')
     } finally {
       setSubmitting(false)
     }
@@ -143,7 +131,7 @@ export default function SurveyPage() {
     )
   }
   
-  if (!survey || !surveySchema) {
+  if (!surveySchema) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -160,10 +148,10 @@ export default function SurveyPage() {
         <div className="max-w-3xl mx-auto">
           <div className="bg-white rounded-lg shadow-md p-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {survey.ui_config_json?.title?.he || 'סקר קיבוץ'}
+              סקר קיבוץ
             </h1>
             <p className="text-gray-600 mb-8">
-              {survey.ui_config_json?.description?.he || 'אנא מלא את השאלון הבא'}
+              אנא מלא את השאלון הבא
             </p>
             
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -189,7 +177,7 @@ export default function SurveyPage() {
                       שולח...
                     </span>
                   ) : (
-                    survey.ui_config_json?.submit_button?.he || 'שלח'
+                    'שלח'
                   )}
                 </button>
               </div>

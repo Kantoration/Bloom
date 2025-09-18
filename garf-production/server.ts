@@ -15,7 +15,9 @@ import {
   deleteRun,
   updateRunStatus,
   fetchActivePolicy,
-  fetchPolicyById
+  fetchPolicyById,
+  saveSurveyResponse,
+  fetchSurveyResponses
 } from './repo';
 import { RunOptions } from './types-enhanced';
 
@@ -352,6 +354,229 @@ app.post('/test-run', async (request, reply) => {
 function generateRunId(): string {
   return `run-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
+
+/**
+ * Survey schema endpoint
+ * GET /survey/schema
+ * 
+ * @returns Survey schema for dynamic form rendering
+ */
+app.get('/survey/schema', async (request: FastifyRequest, reply: FastifyReply) => {
+  try {
+    // Import the survey schema from the file
+    const surveySchema = {
+      "fields": [
+        // Identification
+        {
+          "name": "email",
+          "label": {"he": "כתובת אימייל", "en": "Email"},
+          "type": "email",
+          "required": true,
+          "role": "identifier"
+        },
+        {
+          "name": "full_name",
+          "label": {"he": "שם מלא", "en": "Full Name"},
+          "type": "text",
+          "required": true,
+          "role": "identifier"
+        },
+        {
+          "name": "gender",
+          "label": {"he": "איך את/ה מגדיר/ה את עצמך?", "en": "Gender"},
+          "type": "single_select",
+          "options": ["אשה", "גבר", "Other…"],
+          "required": false,
+          "role": "soft_constraint"
+        },
+        {
+          "name": "age",
+          "label": {"he": "גיל", "en": "Age"},
+          "type": "number",
+          "min": 18,
+          "max": 120,
+          "required": true,
+          "role": "hard_constraint"
+        },
+        {
+          "name": "phone",
+          "label": {"he": "מספר טלפון", "en": "Phone Number"},
+          "type": "phone",
+          "required": true,
+          "role": "identifier"
+        },
+        // Logistics / Hard constraints
+        {
+          "name": "meeting_area",
+          "label": {"he": "באילו אזורים הכי נוח לך להיפגש?", "en": "Preferred Meeting Area"},
+          "type": "single_select",
+          "options": [
+            "צפון ת״א (רמת אביב, רמת החייל)",
+            "מרכז (דיזנגוף, רוטשילד)",
+            "דרום (נווה צדק, פלורנטין, יפו)",
+            "לא משנה לי"
+          ],
+          "required": true,
+          "role": "hard_constraint"
+        },
+        {
+          "name": "meeting_days",
+          "label": {"he": "איזה יום נוח לך למפגש ערב?", "en": "Available Days (Evening)"},
+          "type": "multi_select",
+          "options": ["ראשון", "שני", "שלישי", "רביעי", "לא משנה לי"],
+          "required": true,
+          "role": "hard_constraint"
+        },
+        {
+          "name": "kosher",
+          "label": {"he": "אוכל כשר?", "en": "Kosher food?"},
+          "type": "single_select",
+          "options": ["כן", "לא"],
+          "required": false,
+          "role": "hard_constraint"
+        },
+        {
+          "name": "meeting_language",
+          "label": {"he": "שפת המפגש המועדפת", "en": "Meeting Language"},
+          "type": "single_select",
+          "options": ["עברית בלבד", "אנגלית בלבד", "גם וגם"],
+          "required": true,
+          "role": "hard_constraint"
+        },
+        // Scales (1–10)
+        {
+          "name": "energy_end_day",
+          "label": {"he": "אנרגיה חברתית בסוף יום (1–10)", "en": "Social energy at end of day (1–10)"},
+          "type": "scale",
+          "min": 1, "max": 10,
+          "required": true,
+          "role": "hard_constraint"
+        },
+        {
+          "name": "introversion",
+          "label": {"he": "אני אדם מופנם (1–10)", "en": "I'm Introverted (1–10)"},
+          "type": "scale", "min": 1, "max": 10, "required": true, "role": "soft_constraint"
+        },
+        {
+          "name": "creativity",
+          "label": {"he": "אני אדם יצירתי (1–10)", "en": "I'm Creative (1–10)"},
+          "type": "scale", "min": 1, "max": 10, "required": true, "role": "soft_constraint"
+        },
+        {
+          "name": "humor_importance",
+          "label": {"he": "כמה חשוב לך הומור? (1–10)", "en": "Importance of Humor (1–10)"},
+          "type": "scale", "min": 1, "max": 10, "required": true, "role": "soft_constraint"
+        }
+      ]
+    };
+
+    return {
+      success: true,
+      schema: surveySchema
+    };
+  } catch (error) {
+    app.log.error(error, 'Failed to get survey schema');
+    return reply.status(500).send({
+      error: 'Failed to get survey schema',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Submit survey response
+ * POST /survey
+ * 
+ * @body Survey response data
+ * @returns Confirmation with participant ID
+ */
+interface SurveyRequest {
+  Body: {
+    responses: Record<string, any>;
+  };
+}
+
+app.post<SurveyRequest>('/survey', async (request, reply) => {
+  try {
+    const { responses } = request.body;
+    
+    if (!responses || typeof responses !== 'object') {
+      return reply.status(400).send({
+        error: 'Invalid request',
+        message: 'Responses object is required'
+      });
+    }
+
+    // Validate required fields
+    const requiredFields = ['email', 'full_name', 'age', 'phone'];
+    for (const field of requiredFields) {
+      if (!responses[field]) {
+        return reply.status(400).send({
+          error: 'Missing required field',
+          message: `Field '${field}' is required`
+        });
+      }
+    }
+
+    // Save survey response
+    const surveyResponse = await saveSurveyResponse(responses);
+    
+    app.log.info({
+      participantId: surveyResponse.participant_id,
+      responseId: surveyResponse.id
+    }, 'Survey response saved');
+
+    return {
+      success: true,
+      message: 'Survey response saved successfully',
+      participantId: surveyResponse.participant_id,
+      responseId: surveyResponse.id
+    };
+  } catch (error) {
+    app.log.error(error, 'Failed to save survey response');
+    return reply.status(500).send({
+      error: 'Failed to save survey response',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Get survey responses (admin endpoint)
+ * GET /survey/responses
+ * 
+ * @query limit - Maximum number of responses to return
+ * @query offset - Number of responses to skip
+ * @returns List of survey responses
+ */
+interface SurveyResponsesRequest {
+  Querystring: {
+    limit?: number;
+    offset?: number;
+  };
+}
+
+app.get<SurveyResponsesRequest>('/survey/responses', async (request, reply) => {
+  try {
+    const { limit = 50, offset = 0 } = request.query;
+    
+    const responses = await fetchSurveyResponses(limit, offset);
+    
+    return {
+      success: true,
+      responses,
+      total: responses.length,
+      limit,
+      offset
+    };
+  } catch (error) {
+    app.log.error(error, 'Failed to get survey responses');
+    return reply.status(500).send({
+      error: 'Failed to get survey responses',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
 /**
  * Start the server

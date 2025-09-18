@@ -38,7 +38,8 @@ garf-production/
 
 ## 🗄️ Data Model (Supabase)
 Tables in `schema.sql`:
-- `participants(id, name, email, age, kosher, responses, …)`
+- `participants(id, name, email, age, kosher, responses, survey_response_id, …)`
+- `survey_responses(id, participant_id, responses, created_at)`
 - `runs(id, created_at, options, summary, status, policy_id)`
 - `groups(id, run_id, score, size, metadata)`
 - `group_members(id, group_id, participant_id, role)`
@@ -80,6 +81,9 @@ Endpoints (JSON):
 - `GET /runs/:id` — full run with groups/members and statistics.
 - `GET /runs/:id/stats` — analytics for a run.
 - `DELETE /runs/:id` — delete a run (cascades to groups/members/unassigned).
+- `GET /survey/schema` — fetch survey schema for dynamic form rendering.
+- `POST /survey` — submit survey responses and create participants.
+- `GET /survey/responses` — list survey responses (admin endpoint).
 
 ## 🗂️ Repository (repo.ts)
 - `fetchParticipants()` — load participants and normalize to engine format.
@@ -87,20 +91,25 @@ Endpoints (JSON):
 - `getRun(runId)` / `listRuns()` — retrieve runs with policy info.
 - `fetchActivePolicy()` / `fetchPolicyById(id)` — policy selection.
 - `updateRunStatus()` — track run lifecycle.
+- `saveSurveyResponse(responses)` — create/update participants and save survey responses.
+- `fetchSurveyResponses(limit, offset)` — retrieve survey responses with participant joins.
 
 ## 🧭 Lovable (lovable-config.json)
-- Tables: participants, runs (joined to policies), groups, group_members, unassigned_queue.
-- Dashboard: Overview, Runs, Groups, Participants, Unassigned, Policies.
-- Actions: “Run Grouping” form includes `policy_id` dropdown; triggers `/build-groups`.
+- Tables: participants, runs (joined to policies), groups, group_members, unassigned_queue, survey_responses.
+- Dashboard: Overview, Runs, Groups, Participants, Unassigned, Policies, Survey Responses.
+- Actions: "Run Grouping" form includes `policy_id` dropdown; triggers `/build-groups`.
 
 ## 🖥️ Frontend (frontend/)
-- Next.js app with admin overview and a simple survey flow.
-- Uses `src/lib/api.ts` to call API; Tailwind for styling.
+- Next.js app with dynamic survey form and admin overview.
+- Survey page (`/survey`) fetches schema from API and renders form dynamically.
+- Uses `src/lib/api.ts` to call TypeScript API; Tailwind for styling.
+- Survey responses automatically create participants for grouping runs.
 
 ## 🧪 Testing (tests/)
 - `engine.unit.test.ts` — engine unit coverage.
 - `repo.integration.test.ts` — Supabase persistence integration.
 - `policy.integration.test.ts` — policy selection (active/explicit) and `runs.policy_id` persistence.
+- `survey.integration.test.ts` — survey submission, participant creation, and response validation.
 
 ## ⚙️ Setup & Run
 1) Install
