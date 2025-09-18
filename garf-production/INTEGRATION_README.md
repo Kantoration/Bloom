@@ -135,6 +135,12 @@ curl http://localhost:3000/runs/{runId}/stats
 - Real-time data updates
 - CRUD operations
 
+### Spec-Driven Development
+- All grouping rules documented in `specs/grouping-algorithm.spec.md`
+- Algorithm constraints, scoring system, and diagnostics fully specified
+- Code implementation verified against specifications
+- Comprehensive test coverage for all spec requirements
+
 ### Custom Actions
 - **Run Grouping**: Form-based grouping configuration with policy selection
 - **Test Run**: Quick test with default settings

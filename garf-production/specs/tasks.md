@@ -1,5 +1,5 @@
 ﻿# Tasks Report
 
-- Total Tasks: 31
-- High: 2, Medium: 29, Low: 0
-- Total Story Points: 98
+- Total Tasks: 39
+- High: 2, Medium: 36, Low: 
+- Total Story Points: 127

@@ -6,6 +6,7 @@ GARF turns survey responses into optimal discussion groups. The stack is fully T
 - Admin-controllable grouping via policies stored in Supabase.
 - Deterministic, explainable grouping with diagnostics and scoring.
 - Simple operation: run locally with npm, manage data via Lovable.
+- **Spec-driven development**: All algorithm rules documented in `specs/grouping-algorithm.spec.md`.
 
 ## 🏗️ Architecture Overview
 ```
@@ -106,10 +107,17 @@ Endpoints (JSON):
 - Survey responses automatically create participants for grouping runs.
 
 ## 🧪 Testing (tests/)
-- `engine.unit.test.ts` — engine unit coverage.
+- `engine.unit.test.ts` — engine unit coverage, hard constraints, scoring system, two-phase builder.
 - `repo.integration.test.ts` — Supabase persistence integration.
 - `policy.integration.test.ts` — policy selection (active/explicit) and `runs.policy_id` persistence.
 - `survey.integration.test.ts` — survey submission, participant creation, and response validation.
+
+## 📋 Specifications (specs/)
+- `grouping-algorithm.spec.md` — Complete algorithm specification with hard/soft constraints, scoring, diagnostics.
+- `survey.spec.md` — Survey integration and participant creation workflow.
+- `grouping-run.spec.md` — Policy-driven grouping runs and Lovable integration.
+- `age-bands.spec.md`, `allergy-management.spec.md`, `kosher-filter.spec.md` — Domain-specific rules.
+- `scoring-system.spec.md`, `two-phase-builder.spec.md` — Algorithm components.
 
 ## ⚙️ Setup & Run
 1) Install
