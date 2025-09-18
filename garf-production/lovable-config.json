@@ -1,0 +1,385 @@
+{
+  "name": "GARF Grouping System",
+  "description": "AI-powered group formation system with Supabase integration",
+  "version": "1.0.0",
+  "supabase": {
+    "tables": {
+      "participants": {
+        "displayName": "Participants",
+        "icon": "users",
+        "searchFields": ["name", "email"],
+        "displayFields": ["name", "email", "age", "kosher"],
+        "forms": {
+          "create": {
+            "fields": [
+              { "name": "name", "type": "text", "required": true },
+              { "name": "email", "type": "email", "required": true },
+              { "name": "age", "type": "number", "min": 18, "max": 120 },
+              { "name": "kosher", "type": "boolean" },
+              { "name": "responses", "type": "json", "label": "Survey Responses" }
+            ]
+          }
+        }
+      },
+      "runs": {
+        "displayName": "Grouping Runs",
+        "icon": "play-circle",
+        "searchFields": ["id"],
+        "displayFields": ["id", "created_at", "status", "policy_id"],
+        "defaultSort": { "field": "created_at", "direction": "desc" },
+        "relationships": {
+          "policy_id": { "table": "grouping_policies", "displayField": "name" }
+        },
+        "actions": [
+          {
+            "name": "View Details",
+            "type": "navigate",
+            "target": "/runs/:id"
+          },
+          {
+            "name": "View Statistics",
+            "type": "api",
+            "endpoint": "/runs/:id/stats",
+            "method": "GET"
+          }
+        ]
+      },
+      "grouping_policies": {
+        "displayName": "Grouping Policies",
+        "icon": "sliders",
+        "searchFields": ["name"],
+        "displayFields": [
+          "name",
+          "is_active",
+          "kosher_only",
+          "min_group_size",
+          "target_group_size",
+          "max_allergy_count",
+          "age_policy",
+          "created_at"
+        ],
+        "forms": {
+          "create": {
+            "fields": [
+              { "name": "name", "type": "text", "required": true },
+              { "name": "is_active", "type": "boolean", "label": "Active" },
+              { "name": "kosher_only", "type": "boolean", "label": "Kosher Only" },
+              { "name": "min_group_size", "type": "number", "min": 2, "max": 10 },
+              { "name": "target_group_size", "type": "number", "min": 2, "max": 12 },
+              { "name": "max_allergy_count", "type": "number", "min": 0, "max": 10 },
+              { "name": "age_policy", "type": "select", "options": ["banded", "loose"] },
+              { "name": "scoring_weights", "type": "json" }
+            ]
+          },
+          "edit": {
+            "fields": [
+              { "name": "name", "type": "text", "required": true },
+              { "name": "is_active", "type": "boolean", "label": "Active" },
+              { "name": "kosher_only", "type": "boolean", "label": "Kosher Only" },
+              { "name": "min_group_size", "type": "number", "min": 2, "max": 10 },
+              { "name": "target_group_size", "type": "number", "min": 2, "max": 12 },
+              { "name": "max_allergy_count", "type": "number", "min": 0, "max": 10 },
+              { "name": "age_policy", "type": "select", "options": ["banded", "loose"] },
+              { "name": "scoring_weights", "type": "json" }
+            ]
+          }
+        }
+      },
+      "groups": {
+        "displayName": "Groups",
+        "icon": "users-plus",
+        "searchFields": ["id"],
+        "displayFields": ["id", "score", "size", "created_at"],
+        "relationships": {
+          "run_id": {
+            "table": "runs",
+            "displayField": "id"
+          }
+        }
+      },
+      "group_members": {
+        "displayName": "Group Members",
+        "icon": "user-check",
+        "displayFields": ["participant_id", "role", "joined_at"],
+        "relationships": {
+          "group_id": {
+            "table": "groups",
+            "displayField": "id"
+          }
+        }
+      },
+      "unassigned_queue": {
+        "displayName": "Unassigned Participants",
+        "icon": "user-x",
+        "searchFields": ["reason"],
+        "displayFields": ["participant_id", "reason", "details"],
+        "filters": [
+          {
+            "name": "reason",
+            "type": "select",
+            "options": [
+              "non-kosher-in-kosher-only-run",
+              "no-compatible-partners",
+              "group-too-small",
+              "diet-incompatible",
+              "allergy-limit-exceeded",
+              "age-incompatible",
+              "subspace-too-small",
+              "constraints-violated"
+            ]
+          }
+        ]
+      }
+    },
+    "views": {
+      "run_statistics": {
+        "displayName": "Run Statistics",
+        "icon": "bar-chart",
+        "chart": {
+          "type": "stats",
+          "metrics": [
+            { "field": "total_groups", "label": "Total Groups", "color": "blue" },
+            { "field": "grouped_participants", "label": "Grouped", "color": "green" },
+            { "field": "unassigned_participants", "label": "Unassigned", "color": "red" },
+            { "field": "avg_score", "label": "Avg Score", "format": "percent" }
+          ]
+        }
+      },
+      "group_details": {
+        "displayName": "Group Details",
+        "icon": "info",
+        "displayFields": ["group_id", "score", "member_count"],
+        "expandable": {
+          "field": "members",
+          "type": "json"
+        }
+      }
+    },
+    "actions": [
+      {
+        "name": "Run Grouping",
+        "icon": "play",
+        "type": "form",
+        "endpoint": "/build-groups",
+        "method": "POST",
+        "position": "header",
+        "variant": "primary",
+        "fields": [
+          {
+            "name": "policy_id",
+            "type": "select",
+            "label": "Policy",
+            "dataSource": {
+              "table": "grouping_policies",
+              "valueField": "id",
+              "labelField": "name"
+            },
+            "placeholder": "Use active policy by default"
+          },
+          {
+            "name": "kosherOnly",
+            "type": "boolean",
+            "label": "Kosher Only",
+            "default": false,
+            "description": "Only include kosher participants"
+          },
+          {
+            "name": "targetGroupSize",
+            "type": "number",
+            "label": "Target Group Size",
+            "default": 6,
+            "min": 4,
+            "max": 10
+          },
+          {
+            "name": "minGroupSize",
+            "type": "number",
+            "label": "Minimum Group Size",
+            "default": 4,
+            "min": 2,
+            "max": 6
+          },
+          {
+            "name": "maxGroupSize",
+            "type": "number",
+            "label": "Maximum Group Size",
+            "default": 8,
+            "min": 6,
+            "max": 12
+          },
+          {
+            "name": "enableDiagnostics",
+            "type": "boolean",
+            "label": "Enable Diagnostics",
+            "default": true,
+            "description": "Generate detailed diagnostics"
+          }
+        ],
+        "confirmation": {
+          "title": "Run Grouping Algorithm",
+          "message": "This will create a new grouping run. Continue?",
+          "confirmText": "Run Grouping",
+          "cancelText": "Cancel"
+        },
+        "onSuccess": {
+          "type": "notification",
+          "message": "Grouping completed successfully!",
+          "redirect": "/runs/:runId"
+        }
+      },
+      {
+        "name": "Test Run",
+        "icon": "test-tube",
+        "type": "api",
+        "endpoint": "/test-run",
+        "method": "POST",
+        "position": "header",
+        "variant": "secondary",
+        "confirmation": {
+          "title": "Run Test Grouping",
+          "message": "This will run a test with default settings. Continue?",
+          "confirmText": "Run Test",
+          "cancelText": "Cancel"
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "name": "Overview",
+        "path": "/",
+        "icon": "home",
+        "widgets": [
+          {
+            "type": "stats",
+            "title": "System Overview",
+            "query": "SELECT COUNT(*) as total_participants FROM participants",
+            "metrics": [
+              { "field": "total_participants", "label": "Total Participants" }
+            ]
+          },
+          {
+            "type": "table",
+            "title": "Recent Runs",
+            "source": "run_statistics",
+            "limit": 5,
+            "columns": ["run_id", "created_at", "status", "total_groups", "avg_score"]
+          },
+          {
+            "type": "chart",
+            "title": "Groups per Run",
+            "source": "run_statistics",
+            "chartType": "line",
+            "xAxis": "created_at",
+            "yAxis": "total_groups"
+          }
+        ]
+      },
+      {
+        "name": "Policies",
+        "path": "/policies",
+        "icon": "sliders",
+        "widgets": [
+          {
+            "type": "table",
+            "title": "Grouping Policies",
+            "source": "grouping_policies",
+            "searchable": true,
+            "sortable": true,
+            "paginated": true,
+            "editable": true,
+            "actions": ["Edit", "Delete"]
+          }
+        ]
+      },
+      {
+        "name": "Runs",
+        "path": "/runs",
+        "icon": "play-circle",
+        "widgets": [
+          {
+            "type": "table",
+            "title": "All Runs",
+            "source": "runs",
+            "searchable": true,
+            "sortable": true,
+            "paginated": true,
+            "columns": ["id", "created_at", "status", "policy_id"],
+            "actions": ["View Details", "Delete"]
+          }
+        ]
+      },
+      {
+        "name": "Groups",
+        "path": "/groups",
+        "icon": "users",
+        "widgets": [
+          {
+            "type": "table",
+            "title": "All Groups",
+            "source": "group_details",
+            "searchable": true,
+            "sortable": true,
+            "paginated": true
+          }
+        ]
+      },
+      {
+        "name": "Participants",
+        "path": "/participants",
+        "icon": "users",
+        "widgets": [
+          {
+            "type": "table",
+            "title": "All Participants",
+            "source": "participants",
+            "searchable": true,
+            "sortable": true,
+            "paginated": true,
+            "editable": true,
+            "actions": ["Edit", "Delete"]
+          }
+        ]
+      },
+      {
+        "name": "Unassigned",
+        "path": "/unassigned",
+        "icon": "user-x",
+        "widgets": [
+          {
+            "type": "table",
+            "title": "Unassigned Queue",
+            "source": "unassigned_queue",
+            "groupBy": "reason",
+            "searchable": true,
+            "filters": ["reason", "run_id"]
+          },
+          {
+            "type": "chart",
+            "title": "Unassigned Reasons",
+            "source": "unassigned_summary",
+            "chartType": "pie",
+            "dataField": "count",
+            "labelField": "reason"
+          }
+        ]
+      }
+    ]
+  },
+  "api": {
+    "baseUrl": "${API_URL}",
+    "endpoints": {
+      "health": "/health",
+      "buildGroups": "/build-groups",
+      "getRun": "/runs/:id",
+      "listRuns": "/runs",
+      "getStats": "/runs/:id/stats",
+      "deleteRun": "/runs/:id",
+      "testRun": "/test-run"
+    }
+  },
+  "theme": {
+    "primaryColor": "#3b82f6",
+    "secondaryColor": "#10b981",
+    "darkMode": true
+  }
+}

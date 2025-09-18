@@ -1,0 +1,54 @@
+{
+  "name": "garf-grouping-engine",
+  "version": "1.0.0",
+  "description": "GARF Grouping Engine with Supabase Integration and Spec-Driven Development",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch server.ts",
+    "start": "node dist/server.js",
+    "test": "jest",
+    "lint": "eslint . --ext .ts",
+    "migrate": "psql $DATABASE_URL < schema.sql",
+    "seed": "tsx scripts/seed.ts",
+    "specify": "spec-kit specify",
+    "plan": "spec-kit plan",
+    "tasks": "spec-kit tasks",
+    "spec:validate": "spec-kit validate specs/",
+    "spec:generate": "spec-kit generate --from specs/ --to docs/",
+    "spec:coverage": "spec-kit coverage --specs specs/ --code ."
+  },
+  "dependencies": {
+    "@fastify/cors": "^8.4.2",
+    "@supabase/supabase-js": "^2.39.0",
+    "fastify": "^4.25.1",
+    "uuid": "^9.0.1",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@github/spec-kit": "^1.0.0",
+    "@types/node": "^20.10.3",
+    "@types/uuid": "^9.0.7",
+    "@typescript-eslint/eslint-plugin": "^6.13.2",
+    "@typescript-eslint/parser": "^6.13.2",
+    "eslint": "^8.55.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "grouping",
+    "algorithm",
+    "supabase",
+    "lovable",
+    "fastify",
+    "typescript",
+    "spec-driven-development"
+  ],
+  "author": "GARF Team",
+  "license": "MIT"
+}

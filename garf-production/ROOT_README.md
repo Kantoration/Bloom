@@ -1,258 +1,152 @@
-# 🌟 GARF - Intelligent Group Formation System
+# 🌟 GARF - Intelligent Group Formation System (TypeScript + Supabase)
 
-**Complete Survey-to-Group Formation Platform with Email Verification**
+GARF turns survey responses into optimal discussion groups. The stack is fully TypeScript: a Node/Fastify API, a modular grouping engine, a Next.js frontend, Supabase for persistence, and Lovable for admin dashboards. Python/Docker have been removed.
 
-A comprehensive system that transforms survey responses into optimal groups using advanced algorithms, featuring a modern web interface, email verification, and production-ready architecture.
+## 🎯 Goals
+- Admin-controllable grouping via policies stored in Supabase.
+- Deterministic, explainable grouping with diagnostics and scoring.
+- Simple operation: run locally with npm, manage data via Lovable.
 
-[![GitHub](https://img.shields.io/badge/GitHub-Kantoration%2FBloom-blue?style=flat-square&logo=github)](https://github.com/Kantoration/Bloom)
-[![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
-[![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=flat-square&logo=next.js)](https://nextjs.org)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue?style=flat-square&logo=docker)](https://docker.com)
-
-## 🎯 What is GARF?
-
-GARF (Group Algorithm for Response Formation) is an intelligent system that:
-
-1. **Collects survey responses** through a modern web interface
-2. **Verifies participant emails** with multi-language support
-3. **Processes responses** using advanced algorithms
-4. **Forms optimal groups** based on participant characteristics
-5. **Provides admin controls** for survey management
+## 🏗️ Architecture Overview
+```
+[Next.js Frontend] ──calls──> [Fastify API server.ts]
+       ▲                               │
+       │ Lovable actions/dashboards     │ Supabase JS client
+       │                                ▼
+ [Lovable UI] ───────────────> [repo.ts ↔ Supabase (schema.sql)]
+                                    │
+                                    ▼
+                         [groupingEngine*.ts core logic]
+```
 
 ## 📁 Project Structure
-
 ```
-Bloom/
-├── garf-legacy/                 # Original algorithm and research
-│   ├── sotrim_algo.py          # Core grouping algorithm
-│   ├── genrate_respond.py      # Response generator
-│   ├── group_formation_config.json
-│   ├── group_formation_results.csv
-│   └── test and debug scripts/ # Testing utilities
-│
-└── garf-production/            # Complete production system
-    ├── api/                    # FastAPI backend
-    ├── frontend/              # Next.js frontend
-    ├── worker/                # Background task worker
-    ├── infra/                 # Infrastructure configs
-    ├── docs/                  # Documentation
-    ├── docker-compose.yml     # Container orchestration
-    └── README.md              # Production system docs
+garf-production/
+  server.ts                 Fastify API endpoints
+  repo.ts                   Supabase repository (participants, runs, groups, policies)
+  schema.sql                Supabase schema (tables, views, RLS, triggers)
+  lovable-config.json       Lovable dashboards, tables, and actions
+  groupingEngine*.ts        Grouping algorithm (core/impl/enhanced)
+  ageBands.ts, dietRules.ts Domain rules & helpers
+  scoring.ts                Score calculation helpers
+  types.ts                  Algorithm and domain types
+  types-enhanced.ts         Run options/results/diagnostics types
+  frontend/                 Next.js app (survey UI + simple admin)
+  tests/                    Jest unit+integration tests
+  scripts/, specs/, *.ps1   Spec Kit and dev helpers
 ```
 
-## 🚀 Quick Start
+## 🗄️ Data Model (Supabase)
+Tables in `schema.sql`:
+- `participants(id, name, email, age, kosher, responses, …)`
+- `runs(id, created_at, options, summary, status, policy_id)`
+- `groups(id, run_id, score, size, metadata)`
+- `group_members(id, group_id, participant_id, role)`
+- `unassigned_queue(id, run_id, participant_id, reason, details)`
+- `grouping_policies(id, name, kosher_only, min_group_size, target_group_size, max_allergy_count, age_policy, scoring_weights, created_at, is_active)`
 
-### Option 1: Docker (Recommended)
+Views and functions for dashboards:
+- `run_statistics`, `group_details`, `participant_groups`, `unassigned_summary`
+- RLS policies enable read for authenticated users and writes for admin/service role.
+- Trigger `enforce_single_active_policy()` keeps one active policy.
 
-```bash
-# Clone the repository
-git clone https://github.com/Kantoration/Bloom.git
-cd Bloom/garf-production
+## 🧠 Grouping Policies & Engine
+Policy fields map to engine `RunOptions`:
+- `kosher_only` → `kosherOnly`
+- `min_group_size`, `target_group_size` → `minGroupSize`, `targetGroupSize`
+- `max_allergy_count` → used in engine allergy checks
+- `age_policy` → `'banded' | 'loose'` handling for age constraints
+- `scoring_weights` → weights to tune final score
 
-# Start the complete system
-docker-compose up -d
+Engine modules:
+- `groupingEngineImpl.ts`: Core building loop, pairing/compatibility checks, and scoring.
+- `groupingEngineEnhanced.ts`: Adds diagnostics, summaries, and options handling.
+- `ageBands.ts`: Age band definitions and utilities (banded policy).
+- `dietRules.ts`: Kosher/other diet compatibility helpers.
+- `scoring.ts`: Aggregates penalties/bonuses (size, homogeneity/diversity, constraints).
 
-# Access the application
-# Frontend: http://localhost:3000
-# API: http://localhost:8000
-# API Docs: http://localhost:8000/api/v1/docs
-```
+Method highlights:
+- Hard rules: kosher-only, allergy cap, essential incompatibilities.
+- Age handling: banded (strict bands) or loose (tolerance-based).
+- Builder phases: open expansion then finalize; tries to reach `targetGroupSize` while respecting `minGroupSize`.
+- Diagnostics: distributions, unassigned reasons, explanations per group.
 
-### Option 2: Local Development
+## 🔌 API (server.ts)
+Endpoints (JSON):
+- `POST /build-groups`
+  - Body: `{ policy_id?: string, options?: RunOptions }`
+  - Uses explicit policy if provided else the active policy. Runs engine, persists full run, returns summary and diagnostics.
+- `GET /runs` — list run summaries (with policy context).
+- `GET /runs/:id` — full run with groups/members and statistics.
+- `GET /runs/:id/stats` — analytics for a run.
+- `DELETE /runs/:id` — delete a run (cascades to groups/members/unassigned).
 
-```bash
-# Backend
-cd garf-production/api
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+## 🗂️ Repository (repo.ts)
+- `fetchParticipants()` — load participants and normalize to engine format.
+- `saveRun(run, policyId)` — persist run, groups, members, and unassigned.
+- `getRun(runId)` / `listRuns()` — retrieve runs with policy info.
+- `fetchActivePolicy()` / `fetchPolicyById(id)` — policy selection.
+- `updateRunStatus()` — track run lifecycle.
 
-# Frontend
-cd garf-production/frontend
-npm install
-npm run dev
-```
+## 🧭 Lovable (lovable-config.json)
+- Tables: participants, runs (joined to policies), groups, group_members, unassigned_queue.
+- Dashboard: Overview, Runs, Groups, Participants, Unassigned, Policies.
+- Actions: “Run Grouping” form includes `policy_id` dropdown; triggers `/build-groups`.
 
-## ✨ Key Features
+## 🖥️ Frontend (frontend/)
+- Next.js app with admin overview and a simple survey flow.
+- Uses `src/lib/api.ts` to call API; Tailwind for styling.
 
-### 🧠 Intelligent Group Formation
-- **Advanced Algorithm**: Based on SOTRIM research
-- **Multi-criteria Optimization**: Considers multiple participant characteristics
-- **Flexible Grouping**: Configurable group sizes and constraints
-- **Real-time Processing**: Background algorithm execution
+## 🧪 Testing (tests/)
+- `engine.unit.test.ts` — engine unit coverage.
+- `repo.integration.test.ts` — Supabase persistence integration.
+- `policy.integration.test.ts` — policy selection (active/explicit) and `runs.policy_id` persistence.
 
-### 📧 Email Verification System
-- **Multi-language Support**: Hebrew & English templates
-- **Professional Design**: Beautiful HTML email templates
-- **Secure Tokens**: UUID-based verification with expiration
-- **Background Processing**: Non-blocking email sending
-
-### 🎨 Modern Web Interface
-- **Responsive Design**: Works on desktop and mobile
-- **TypeScript**: Type-safe frontend development
-- **Tailwind CSS**: Modern, utility-first styling
-- **RTL Support**: Right-to-left text for Hebrew
-
-### 🏗️ Production Architecture
-- **Microservices**: Scalable, maintainable design
-- **Docker**: Easy deployment and scaling
-- **PostgreSQL**: Robust data storage
-- **Redis**: Background job processing
-- **API Documentation**: Auto-generated Swagger docs
-
-## 📊 System Components
-
-### Backend (FastAPI)
-- **Survey Management**: Create and manage surveys
-- **Response Collection**: Handle participant responses
-- **Email Verification**: Send and verify emails
-- **Group Formation**: Run grouping algorithms
-- **Admin Controls**: Administrative functions
-
-### Frontend (Next.js)
-- **Survey Interface**: User-friendly response collection
-- **Admin Dashboard**: Survey and group management
-- **Email Verification**: Token verification interface
-- **Results Display**: Group formation results
-
-### Worker (Background Tasks)
-- **Feature Extraction**: Process response data
-- **Email Sending**: Background email operations
-- **Algorithm Execution**: Group formation processing
-- **Data Normalization**: Clean and prepare data
-
-## 🔧 Configuration
-
-### Environment Setup
-```bash
-# Copy template and configure
-cp garf-production/env.template garf-production/.env
-
-# Configure email settings
-MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=your-app-password
-MAIL_FROM=noreply@garf.com
-```
-
-### Database Setup
-```bash
-# Create database
-createdb garf_db
-
-# Run schema
-psql -d garf_db -f garf-production/infra/database_schema.sql
-
-# Run email verification migration
-psql -d garf_db -f garf-production/api/migrations/add_email_verification.sql
-```
-
-## 📚 Documentation
-
-- **[Production System README](garf-production/README.md)** - Complete production system documentation
-- **[Email Verification Guide](garf-production/docs/EMAIL_VERIFICATION.md)** - Email system setup and usage
-- **[System Demo](garf-production/docs/SYSTEM_DEMO.md)** - How to use the system
-- **[API Documentation](http://localhost:8000/api/v1/docs)** - Interactive API docs
-
-## 🧪 Testing
-
-### Test Email Verification
-```bash
-cd garf-production/api
-python test_email_verification.py
-```
-
-### Test System Integration
+## ⚙️ Setup & Run
+1) Install
 ```bash
 cd garf-production
-python test_system.py
+npm install
 ```
-
-### Test Legacy Algorithm
+2) Supabase
 ```bash
-cd garf-legacy/test\ and\ debug\ scripts
-python test_algo.py
+cp env.template .env
+# Set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+# Apply schema: open Supabase SQL editor and paste contents of schema.sql
 ```
-
-## 🚀 Deployment
-
-### Production Deployment
+3) Dev
 ```bash
-# Configure production environment
-export DEBUG=false
-export SECRET_KEY=your-production-secret
-
-# Deploy with Docker
-docker-compose -f docker-compose.prod.yml up -d
+npm run dev     # runs API and Web together (concurrently)
+```
+4) Test
+```bash
+npm test
 ```
 
-### Cloud Platforms
-Ready for deployment on:
-- **AWS** (ECS, EKS, EC2)
-- **Google Cloud** (Cloud Run, GKE)
-- **Azure** (Container Instances, AKS)
-- **DigitalOcean** (App Platform)
-- **Heroku** (Container deployment)
+Useful scripts:
+```bash
+npm run dev:api   # API only (Fastify)
+npm run dev:web   # Frontend only (Next.js)
+npm run build     # TypeScript build (API)
+npm start         # Run compiled API server
+```
 
-## 🔍 Monitoring & Health
+## 🔐 Security
+- RLS policies in `schema.sql` restrict writes to admin/service role.
+- API CORS configured for Lovable.
+- Avoid exposing service role keys to the browser; keep them server-side.
 
-- **API Health**: `GET /api/v1/health`
-- **Database Monitoring**: Automatic connection checks
-- **Redis Monitoring**: Queue health monitoring
-- **Structured Logging**: Configurable log levels
+## 🛟 Troubleshooting
+- “No participants found” on /build-groups: insert participants into `participants`.
+- “No active policy found”: create a policy in Lovable and toggle `is_active`.
+- Policy overrides: pass `options` in request body to temporarily override policy fields.
+- Missing dashboards: ensure `lovable-config.json` is loaded by Lovable.
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License.
-
-## 👥 Team & Credits
-
-- **Algorithm**: Based on SOTRIM research implementation
-- **System Architecture**: Production-ready microservices design
-- **Frontend**: Modern React/Next.js application
-- **Backend**: FastAPI with comprehensive API design
-- **Email System**: Multi-language verification system
-
-## 📞 Support
-
-- **GitHub Issues**: [Create an issue](https://github.com/Kantoration/Bloom/issues)
-- **Documentation**: Check the `docs/` folders
-- **API Docs**: http://localhost:8000/api/v1/docs
-
-## 🎯 Roadmap
-
-### Recent Achievements ✅
-- Complete email verification system
-- Multi-language support (Hebrew & English)
-- Docker containerization
-- Production-ready architecture
-- Comprehensive API documentation
-- Admin control system
-
-### Upcoming Features 🚧
-- Advanced analytics dashboard
-- Real-time group formation updates
-- Mobile application
-- Advanced email templates
-- Multi-tenant support
-- Integration with external tools
+## 🔄 Migration Notes
+- Legacy Python (FastAPI), worker, and Docker/infra were removed.
+- Email verification flows are out-of-scope for this repo.
+- Use Supabase (`schema.sql`) + Lovable for admin and data management.
 
 ---
 
-**Built with ❤️ for intelligent group formation**
-
-*Transform survey responses into optimal groups with advanced algorithms and modern web technology.*
-
-## 🔗 Links
-
-- **GitHub Repository**: [Kantoration/Bloom](https://github.com/Kantoration/Bloom)
-- **Production System**: [garf-production/README.md](garf-production/README.md)
-- **Email Verification**: [garf-production/docs/EMAIL_VERIFICATION.md](garf-production/docs/EMAIL_VERIFICATION.md)
-- **API Documentation**: http://localhost:8000/api/v1/docs
+Built with ❤️ for intelligent group formation.
